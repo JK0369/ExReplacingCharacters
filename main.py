@@ -1,29 +1,67 @@
 import time
-import pandas as pd
-import numpy as np
-import scipy.stats as stats
-from datetime import datetime, timedelta
 import threading
+
+import algorithm
 import candle
 
 import client_binance
 import db
 
+BTC = 'BTCUSDT'
+ETH = 'ETHUSDT'
 
-def update_df_every_seconds():
+
+def update_df(loop: bool = True):
     while True:
-        time.sleep(1)
+        if loop:
+            time.sleep(1)
 
         # dataframe[{"timestamp", "open", "high", "low", "close", "volume"}]
-        bitcoin_candle_df = client_binance.get_candle_df(symbol='BTCUSDT')
-        etherium_candle_df = client_binance.get_candle_df(symbol='ETHUSDT')
+        btc_candle_df = client_binance.get_candle_df(symbol=BTC)
+        eth_candle_df = client_binance.get_candle_df(symbol=ETH)
 
-        db.bitcoin_candles = candle.Candles(bitcoin_candle_df)
-        db.etherium_candles = candle.Candles(etherium_candle_df)
+        db.btc_candles = candle.Candles(btc_candle_df)
+        db.eth_candles = candle.Candles(eth_candle_df)
+
+        if not loop:
+            break
+
+
+def start_trade(delay: bool = True):
+    if delay:
+        time.sleep(1)
+
+    has_position = client_binance.has_position(symbol=ETH)
+
+    if has_position:
+        if algorithm.should_sunhwan_mae():
+            print()
+        elif algorithm.should_take_profit():
+            print()
+        elif algorithm.should_stop_loss():
+            print()
+        else:
+            start_trade()
+    else:
+        should_entry_position = algorithm.should_entry_position(
+            btc_candles=db.btc_candles,
+            eth_candles=db.eth_candles
+        )
+        if should_entry_position:
+            print('매수')
+        else:
+            start_trade()
 
 
 def run():
-    thread = threading.Thread(target=update_df_every_seconds)
+    # 최초 한번 update
+    update_df(loop=False)
+
+    # trade
+    start_trade(delay=False)
+
+    # update
+    thread = threading.Thread(target=update_df)
     thread.start()
 
 
