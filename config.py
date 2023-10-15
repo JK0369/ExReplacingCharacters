@@ -18,5 +18,5 @@ FRACTION_RATIO = 1 / 45
 LIMIT_MULTIPLIER = 3
 # 수익 기준 수수료
 FEE = 0.08
-# 평균값을 구할때의 캔들 개수
-COUNT_OF_CANDLES = 70
+# 평균값을 구할때의 5분봉 개수
+COUNT_OF_5_MINUTE_CANDLES = 70

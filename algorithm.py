@@ -19,7 +19,7 @@ def should_entry_position(
     # 거래량 비교: can_entry_volume
     now_volume = btc_candles.get_now_volume()
     previous_volumes = btc_candles.get_previous_volumes()
-    avg_volume = _get_filtered_zscore_mean(values=previous_volumes, COUNT_OF_CANDLES=config.COUNT_OF_CANDLES)
+    avg_volume = _get_filtered_zscore_mean(values=previous_volumes, COUNT_OF_CANDLES=config.COUNT_OF_5_MINUTE_CANDLES)
     can_entry_volume = _can_entry_volume(now_volume=now_volume, avg_volume=avg_volume)
 
     # 캔들 비교: 이전 5분봉도 현재 캔들 봉과 양봉 or 음봉 동일
@@ -32,32 +32,78 @@ def should_entry_position(
 
     return can_entry_volume and same_candle_now_and_previous and is_over_profit_ratio
 
-# (is_buy, quantity, price)
-def get_entry_position(
+# 진입할 때 양 획득 (quantity)
+def get_entry_position_at_firsttime(
         candles: candle.Candles,
-        usdt_balance: float,
-        leverage: float
-) -> (bool, float, float):
-    # buy인지 sell인지 구분
-    is_buy = not candles.get_now_candle_is_plus()
-
+        usdt_balance: float
+) -> float:
     cur_price = candles.get_now_close()
     investment_amount = usdt_balance * config.FRACTION_RATIO # 투자 금액 계산
-    margin = investment_amount * leverage # 레버리지 적용한 마진 계산
+    margin = investment_amount * config.LEVERAGE # 레버리지 적용한 마진 계산
     quantity = margin / cur_price
+    return quantity
 
-    # price 계산
+# 진입 양 획득 (quantity)
+def get_entry_quantity(entered_usdt: float, total_usdt: float) -> float:
+
+    ## 4개의 구간
+    # 현재 진입한 양을 기준으로 계산
+    # 0: break
+    # 0초과 ~ 2/45 이하: 1/45 매수
+    # 0/45 초과 ~ 7/45 이하: 2/45 매수
+    # 7/45 초과 ~ 17/45 이하: 4/45 매수
+    # 21/45 초과 ~ 37/45 이하: 8/45 매수
+    # 37/45 초과: 익절 or 손절
+
+    entry_ratio = entered_usdt / total_usdt
+
+    # step
+    s1 = 0
+    s2 = (2 / config.FRACTION_RATIO)
+    s3 = (7 / config.FRACTION_RATIO)
+    s4 = (21 / config.FRACTION_RATIO)
+    s5 = (37 / config.FRACTION_RATIO)
+
+    if 0 == entry_ratio:
+        return total_usdt / config.FRACTION_RATIO
+    elif s1 < entry_ratio <= s2:
+        return total_usdt * 1 / config.FRACTION_RATIO
+    elif s2 < entry_ratio <= s3:
+        return total_usdt * 2 / config.FRACTION_RATIO
+    elif s3 < entry_ratio <= s4:
+        return total_usdt * 4 / config.FRACTION_RATIO
+    elif s4 < entry_ratio <= s5:
+        return total_usdt * 8 / config.FRACTION_RATIO
+    else:
+        return 0
+
+# buy, sell 여부 (True이면 롱자리, False이면 숏자리)
+def get_should_entry_long_position(candles: candle.Candles) -> bool:
+    return not candles.get_now_candle_is_plus()
+
+def get_limit_price(candles: candle.Candles, should_buy: bool) -> float:
     # 지정가로 팔것이기 때문에, is_buy이면 현재 가격보다 훨씬 낮게 처리 (3배 곱해주기)
-    multiplier = cur_price * config.LIMIT_MULTIPLIER if is_buy else 1/config.LIMIT_MULTIPLIER
-    price = cur_price * multiplier
-
-    return is_buy, quantity, price
-
+    multiplier = config.LIMIT_MULTIPLIER / 3 if should_buy else config.LIMIT_MULTIPLIER
+    cur_price = candles.get_now_close()
+    return cur_price * multiplier
 
 ## 사용하는쪽(포지션이 있을때): 순환매 vs 익절 vs 손절 vs loop
-def should_sunhwan_mae() -> bool:
-    return True
+def should_sunhwan_mae(is_now_candle_plus: bool) -> bool:
+    # 순환매 조건
+    # 1. 이전 진입 포지션에 비하여 많이 빠진 경우
+    # 2. 순간적으로 많이 빠진 경우
 
+    ## 1.
+    # 많이 빠진 기준: 이전 6개 5분봉 (30분)의 저점 or 고점보다 많이 빠져야함
+    if is_now_candle_plus:
+        print()
+
+    else:
+        print()
+
+    ## 2.
+
+    return True
 
 def should_take_profit() -> bool:
     return True

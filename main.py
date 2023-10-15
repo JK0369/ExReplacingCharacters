@@ -37,17 +37,17 @@ def start_trade(delay: bool = True):
             eth_candles=db.eth_candles
         )
         if should_entry_position:
-            is_buy, quantity, price = algorithm.get_entry_position(
-                candles=db.eth_candles,
-                usdt_balance=client_binance.get_usdt_balance(),
-                leverage=config.LEVERAGE
-            )
+            should_entry_long_position = algorithm.get_should_entry_long_position(candles=db.eth_candles)
+            price = algorithm.get_limit_price(candles=db.eth_candles, should_buy=should_entry_long_position)
+            quantity = algorithm.get_entry_quantity(entered_usdt=client_binance.get_entered_usdt())
+
             order = client_binance.create_position(
-                is_buy=is_buy,
+                is_buy=should_entry_long_position,
                 quantity=quantity,
                 price=price
             )
             # print(order)
+            # 알림넣기
         else:
             start_trade()
     else:
@@ -62,15 +62,20 @@ def start_trade(delay: bool = True):
 
 
 def run():
-    # 최초 한번 update
-    update_df(loop=False)
+    sam = client_binance.get_entered_usdt()
 
-    # trade
-    start_trade(delay=False)
+    print(sam, client_binance.get_total_usdt_balance())
 
-    # update
-    thread = threading.Thread(target=update_df)
-    thread.start()
+    # TODO: 주석 해제 (현재는 테스트하느라 잠깐 주석처리)
+    # # 최초 한번 update
+    # update_df(loop=False)
+    #
+    # # trade
+    # start_trade(delay=False)
+    #
+    # # update
+    # thread = threading.Thread(target=update_df)
+    # thread.start()
 
 
 if __name__ == '__main__':

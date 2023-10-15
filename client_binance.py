@@ -47,10 +47,23 @@ def has_position(symbol: str) -> bool:
     # 포지션 없는 경우
     return False
 
-
-def get_usdt_balance() -> float:
+# 진입한 포지션을 포함한 확정된 USDT (현재 이익중이거나 손실중인 usdt는 미포함)
+def get_total_usdt_balance() -> float:
     return float(get_account_banlance(symbol='USDT')['balance'])
 
+# 현재 진입한 포지션들의 USDT (진입하지 않은 usdt는 제외)
+def get_entered_usdt() -> float:
+    account_info = client.futures_account()
+
+    # USDT 잔고를 저장할 변수 초기화
+    usdt_balance = 0.0
+
+    # 포지션 정보를 확인하고 USDT 잔고 누적
+    for position in account_info['positions']:
+        if position['symbol'] == config.TARGET_SYMBOL:
+            usdt_balance += float(position['initialMargin'])
+
+    return usdt_balance
 
 def get_account_banlance(symbol: str) -> dict:
     account_infos = _get_account_banlances()
@@ -64,35 +77,10 @@ def _get_account_banlances() -> list:
     return client.futures_account_balance()
 
 
-# [
-#     {
-#         "accountAlias": "FzoCSgAuXqSgXqSg",
-#         "asset": "BTC",
-#         "balance": "0.00000000",
-#         "crossWalletBalance": "0.00000000",
-#         "crossUnPnl": "0.00000000",
-#         "availableBalance": "0.00000000",
-#         "maxWithdrawAmount": "0.00000000",
-#         "marginAvailable": true,
-#         "updateTime": 0
-#     },
-#     {
-#         "accountAlias": "FzoCSgAuXqSgXqSg",
-#         "asset": "XRP",
-#         "balance": "0.00000000",
-#         "crossWalletBalance": "0.00000000",
-#         "crossUnPnl": "0.00000000",
-#         "availableBalance": "0.00000000",
-#         "maxWithdrawAmount": "0.00000000",
-#         "marginAvailable": true,
-#         "updateTime": 0
-#     },
-#     ...
-
 def create_position(is_buy: bool, quantity: float, price: float) -> order_info.OrderInfo:
     order_params = {
         'symbol': config.TARGET_SYMBOL,
-        'side': 'BUY',  # 매수 주문인 경우 'BUY', 매도 주문인 경우 'SELL'
+        'side': 'BUY' if is_buy else 'SELL', # 매수 혹은 매도
         'type': ORDER_TYPE_LIMIT,  # 지정 가격 주문 사용
         'price': round(price, 2),  # 주문 가격 설정
         'quantity': round(quantity, 2),  # 주문 수량 설정
@@ -108,28 +96,3 @@ def create_position(is_buy: bool, quantity: float, price: float) -> order_info.O
     # "FOK" (Fill or Kill): 주문을 즉시 전량 실행하거나 전혀 실행하지 않습니다.
 
     return order_info.OrderInfo(result)
-
-### order는 dict 타입
-# order = {
-#     'symbol': 'BTCUSDT',
-#     'orderId': 12345678,
-#     'clientOrderId': 'YOUR_UNIQUE_ORDER_ID',
-#     'transactTime': 1633950107311,  # 주문 실행 시간 (타임스탬프)
-#     'price': 60000.0,
-#     'origQty': 1.0,
-#     'executedQty': 1.0,  # 주문이 실행된 수량
-#     'cummulativeQuoteQty': 60000.0,
-#     'status': 'FILLED',
-#     'timeInForce': 'GTC',
-#     'type': 'LIMIT',
-#     'side': 'BUY',
-#     'fills': [
-#         {
-#             'price': 60000.0,
-#             'qty': 1.0,
-#             'commission': '0.001',
-#             'commissionAsset': 'BTC',
-#         }
-#     ]
-# }
-###
