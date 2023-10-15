@@ -1,0 +1,28 @@
+# {'orderId': 8389765621363230614, 'symbol': 'ETHUSDT', 'status': 'NEW', 'clientOrderId': 'Xud6KNLffu3pMeHVWUIY5O', 'price': '517.77', 'avgPrice': '0.00', 'origQty': '0.360', 'executedQty': '0.000', 'cumQty': '0.000', 'cumQuote': '0.00000', 'timeInForce': 'GTC', 'type': 'LIMIT', 'reduceOnly': False, 'closePosition': False, 'side': 'BUY', 'positionSide': 'BOTH', 'stopPrice': '0.00', 'workingType': 'CONTRACT_PRICE', 'priceProtect': False, 'origType': 'LIMIT', 'priceMatch': 'NONE', 'selfTradePreventionMode': 'NONE', 'goodTillDate': 0, 'updateTime': 1697355326343}
+
+class OrderInfo:
+    def __init__(self, data):
+        self.orderId = data['orderId']
+        self.symbol = data['symbol']
+        self.status = data['status']
+        self.clientOrderId = data['clientOrderId']
+        self.price = data['price']
+        self.avgPrice = data['avgPrice']
+        self.origQty = data['origQty']
+        self.executedQty = data['executedQty']
+        self.cumQty = data['cumQty']
+        self.cumQuote = data['cumQuote']
+        self.timeInForce = data['timeInForce']
+        self.type = data['type']
+        self.reduceOnly = data['reduceOnly']
+        self.closePosition = data['closePosition']
+        self.side = data['side']
+        self.positionSide = data['positionSide']
+        self.stopPrice = data['stopPrice']
+        self.workingType = data['workingType']
+        self.priceProtect = data['priceProtect']
+        self.origType = data['origType']
+        self.priceMatch = data['priceMatch']
+        self.selfTradePreventionMode = data['selfTradePreventionMode']
+        self.goodTillDate = data['goodTillDate']
+        self.updateTime = data['updateTime']

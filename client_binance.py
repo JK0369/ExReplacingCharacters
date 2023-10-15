@@ -1,12 +1,12 @@
 from binance.client import Client
+from binance.enums import ORDER_TYPE_LIMIT
+
 from datetime import datetime, timedelta
 import pandas as pd
+import config
+import order_info
 
-# API docu: https://python-binance.readthedocs.io/en/latest/
-API_KEY = 'oveppFoaNIMmD0dwpgUXq8g4AmlRUME0FY446xAzN1wqykU9wckRQBTHhIqO0tPw'
-API_SECRET_KEY = 'K2spwteWI9LUCUvkPMT6Shq8bobBHhnZRwp3hTDt9Vxpz1fEpQ68SbNMmQxenpcu'
-
-client = Client(API_KEY, API_SECRET_KEY)
+client = Client(config.API_KEY, config.API_SECRET_KEY)
 
 
 # return: dataframe [{"timestamp", "open", "high", "low", "close", "volume"}]
@@ -29,8 +29,6 @@ def get_candle_df(symbol: str) -> pd.DataFrame:
     converted_datetime = [datetime.fromtimestamp(int(x / 1000)) for x in temp_df['timestamp']]
     temp_df['timestamp'] = pd.to_datetime(converted_datetime)
 
-    # TODO: volume값이 다름
-
     cliped_df = temp_df[["timestamp", "open", "high", "low", "close", "volume"]]
     candle_df = cliped_df.sort_values(by='timestamp', ascending=False, ignore_index=True)
     return candle_df
@@ -48,3 +46,90 @@ def has_position(symbol: str) -> bool:
 
     # 포지션 없는 경우
     return False
+
+
+def get_usdt_balance() -> float:
+    return float(get_account_banlance(symbol='USDT')['balance'])
+
+
+def get_account_banlance(symbol: str) -> dict:
+    account_infos = _get_account_banlances()
+    for asset in account_infos:
+        if asset['asset'] == symbol:
+            return asset
+    return {}
+
+
+def _get_account_banlances() -> list:
+    return client.futures_account_balance()
+
+
+# [
+#     {
+#         "accountAlias": "FzoCSgAuXqSgXqSg",
+#         "asset": "BTC",
+#         "balance": "0.00000000",
+#         "crossWalletBalance": "0.00000000",
+#         "crossUnPnl": "0.00000000",
+#         "availableBalance": "0.00000000",
+#         "maxWithdrawAmount": "0.00000000",
+#         "marginAvailable": true,
+#         "updateTime": 0
+#     },
+#     {
+#         "accountAlias": "FzoCSgAuXqSgXqSg",
+#         "asset": "XRP",
+#         "balance": "0.00000000",
+#         "crossWalletBalance": "0.00000000",
+#         "crossUnPnl": "0.00000000",
+#         "availableBalance": "0.00000000",
+#         "maxWithdrawAmount": "0.00000000",
+#         "marginAvailable": true,
+#         "updateTime": 0
+#     },
+#     ...
+
+def create_position(is_buy: bool, quantity: float, price: float) -> order_info.OrderInfo:
+    order_params = {
+        'symbol': config.TARGET_SYMBOL,
+        'side': 'BUY',  # 매수 주문인 경우 'BUY', 매도 주문인 경우 'SELL'
+        'type': ORDER_TYPE_LIMIT,  # 지정 가격 주문 사용
+        'price': round(price, 2),  # 주문 가격 설정
+        'quantity': round(quantity, 2),  # 주문 수량 설정
+        'leverage': config.LEVERAGE,  # 레버리지 설정 (20배 레버리지)
+        'timeinforce': 'GTC'
+    }
+
+    result = client.futures_create_order(**order_params)
+
+    # timeinForce
+    # "GTC" (Good 'Til Canceled): 주문을 취소할 때까지 계속 유지됩니다.
+    # "IOC" (Immediate or Cancel): 주문을 즉시 실행하거나 부분적으로만 실행하고 나머지는 취소합니다.
+    # "FOK" (Fill or Kill): 주문을 즉시 전량 실행하거나 전혀 실행하지 않습니다.
+
+    return order_info.OrderInfo(result)
+
+### order는 dict 타입
+# order = {
+#     'symbol': 'BTCUSDT',
+#     'orderId': 12345678,
+#     'clientOrderId': 'YOUR_UNIQUE_ORDER_ID',
+#     'transactTime': 1633950107311,  # 주문 실행 시간 (타임스탬프)
+#     'price': 60000.0,
+#     'origQty': 1.0,
+#     'executedQty': 1.0,  # 주문이 실행된 수량
+#     'cummulativeQuoteQty': 60000.0,
+#     'status': 'FILLED',
+#     'timeInForce': 'GTC',
+#     'type': 'LIMIT',
+#     'side': 'BUY',
+#     'fills': [
+#         {
+#             'price': 60000.0,
+#             'qty': 1.0,
+#             'commission': '0.001',
+#             'commissionAsset': 'BTC',
+#         }
+#     ]
+# }
+###
