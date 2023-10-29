@@ -1,3 +1,5 @@
+from typing import List
+
 from binance.client import Client
 from binance.enums import ORDER_TYPE_LIMIT
 
@@ -5,6 +7,8 @@ from datetime import datetime, timedelta
 import pandas as pd
 import config
 import order_info
+import position
+import trade_history
 
 client = Client(config.API_KEY, config.API_SECRET_KEY)
 
@@ -77,10 +81,12 @@ def _get_account_banlances() -> list:
     return client.futures_account_balance()
 
 
-def create_position(is_buy: bool, quantity: float, price: float) -> order_info.OrderInfo:
+def cancel_all_position_and_create_position(should_buy: bool, quantity: float, price: float) -> order_info.OrderInfo:
+    _cancel_all_position()
+
     order_params = {
         'symbol': config.TARGET_SYMBOL,
-        'side': 'BUY' if is_buy else 'SELL', # 매수 혹은 매도
+        'side': 'BUY' if should_buy else 'SELL', # 매수 혹은 매도
         'type': ORDER_TYPE_LIMIT,  # 지정 가격 주문 사용
         'price': round(price, 2),  # 주문 가격 설정
         'quantity': round(quantity, 2),  # 주문 수량 설정
@@ -96,3 +102,26 @@ def create_position(is_buy: bool, quantity: float, price: float) -> order_info.O
     # "FOK" (Fill or Kill): 주문을 즉시 전량 실행하거나 전혀 실행하지 않습니다.
 
     return order_info.OrderInfo(result)
+
+def _cancel_all_position():
+    # 지정가 주문 조회
+    open_orders = client.futures_get_open_orders()
+
+    # 체결되지 않은 주문 취소
+    for order in open_orders:
+        if order['status'] == 'NEW': # 'NEW': 체결되지 않은 주문
+            result = client.futures_cancel_order(symbol=order['symbol'], orderId=order['orderId'])
+
+def get_position_info() -> position.Info | None:
+    # 포지션 정보 가져오기
+    position_info = client.futures_position_information(symbol=config.TARGET_SYMBOL)
+    if not position_info:
+        return None
+    info = position_info[0]
+    return position.Info.from_api_response(info)
+
+def get_position_history_list() -> list[trade_history.Trade]:
+    position_trades = client.futures_account_trades(symbol=config.TARGET_SYMBOL)
+    ordered_position_trades = position_trades[::-1]
+    trades = [trade_history.Trade(entry) for entry in ordered_position_trades]
+    return trades
