@@ -16,7 +16,7 @@ import utils
 
 # public
 
-## 사용하는쪽(포지션이 없을때): true(진입) vs false(loop)
+## 사용하는쪽(포지션이 L없을때): true(진입) vs false(loop)
 def should_entry_position(
         btc_candles: candle.Candles,
         target_candles: candle.Candles
@@ -39,6 +39,7 @@ def should_entry_position(
         return False
 
     return is_현재_거래량_터짐 and same_candle_now_and_previous
+
 
 # 진입할 때 양 획득 (quantity)
 def get_entry_position_at_firsttime(
@@ -104,7 +105,9 @@ def get_entry_category(
         position_info: position.Info,
         trade_history_list: list[trade_history.Trade],
         candles: candle.Candles,
-        total_usdt_balance: float
+        total_usdt_balance: float,
+        entered_usdt: float,
+        total_usdt: float
 ) -> entry.Category:
     # 히스토리를 분석하여 반털지, 물탈지 등을 판단
 
@@ -114,7 +117,7 @@ def get_entry_category(
         return entry.Category.반털
     elif _should_물타기(candles, position_info, trade_history_list, candles.get_now_candle_is_plus()):
         return entry.Category.물타기
-    elif _should_손절(position_info, trade_history_list):
+    elif _should_손절(position_info, trade_history_list, entered_usdt, total_usdt, candles):
         return entry.Category.손절
     else:
         return entry.Category.대기
@@ -192,24 +195,39 @@ def _should_물타기(candles: candle.Candles, position_info: position.Info,
     if not candles.get_is_now_candle_꼬리_생김():
         return False
 
+    # 4. 하나의 봉에서는 2번 이하로만 물타기
+    ## 최근 2개 trade history 탐색 > 2개 모두 buy인 경우 pass
+    is_continous_물타기 = trade_history_list[0].is_buy and trade_history_list[1].is_buy
+    if is_continous_물타기:
+        return False
+
     return True
 
 
-def _should_손절(position_info: position.Info, trade_history_list: list[trade_history.Trade]) -> bool:
+def _should_손절(position_info: position.Info, trade_history_list: list[trade_history.Trade], entered_usdt: float,
+               total_usdt: float, candles: candle.Candles) -> bool:
     roi_ratio = position_info.roi_ratio
-    # TODO:
-    ## 물렸을때 대부분 내 물량이 많이 들어갔을때 하루정도 다음날이면
-    ## 복구하는 경우가 많음 -> 하루 ~ 이틀정도 지켜보기
-    ## 1. 내가 물타기 한 시점 파악 -> 3일 전이면 pass
-
-    ## 2. 진입한 물량이 많이 들어가지 않았으면 pass
-
-    ## 3. 반털 구간에서 멀지 않은 경우 pass
-
     if not roi_ratio < 0:
         return False
 
-    return False
+    # 1. 물린지 3일이 지났을때 손절 타이밍: 최근거래 히스토리를 획득 > 매수인지 체크 > 3일 경과
+    latest_trade = trade_history_list[0]
+    should_condition = latest_trade.is_add_position and utils.get_is_over_3_days_from_now(latest_trade.time)
+    if not should_condition:
+        return False
+
+    # 2. 진입한 물량이 많지 않으면 pass
+    ## 기준: 80% 이상 진입 (111 222 444 888에서 마지막 8진입 전)
+    if not entered_usdt / total_usdt * 100 < 80:
+        return False
+
+    # 3. 반털 구간에서 멀지 않은 경우 pass
+    variable_ratio = abs(candles.get_now_close() - position_info.entry_price) / position_info.entry_price
+    contains_range = variable_ratio < config.횡보_변동폭_기준_ratio
+    if not contains_range:
+        return False
+
+    return True
 
 
 def _get_is_횡보(candles: candle.Candles) -> bool:
@@ -218,8 +236,6 @@ def _get_is_횡보(candles: candle.Candles) -> bool:
     avg_ratio = candles.get_variable_ratio(cnt=12)
     return avg_ratio < config.횡보_변동폭_기준_ratio * config.LEVERAGE
 
-
-# private
 
 ## 평균 * 3 보다\n현재 캔들 거래량이 큰가?
 def _get_zscores(values: list) -> ndarray | Iterable | int | float:

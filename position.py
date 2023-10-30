@@ -17,7 +17,7 @@ class Info:
                  is_auto_add_margin, notional, isolated_wallet, update_time):
         self.symbol = symbol
         self.position_amt = float(position_amt)
-        self.entry_price = entry_price
+        self.entry_price = float(entry_price)
         self.break_even_price = break_even_price
         self.mark_price = mark_price
         self.unrealized_profit = float(unrealized_profit)
@@ -27,7 +27,7 @@ class Info:
         self.margin_type = margin_type
         self.isolated_margin = isolated_margin
         self.is_auto_add_margin = is_auto_add_margin
-        self.notional = notional
+        self.notional = float(notional)  # 내가 총 투자한 양
         self.isolated_wallet = isolated_wallet
         self.update_time = utils.get_ymd_time(update_time)
 
@@ -37,11 +37,11 @@ class Info:
             self.position_type = PositionType.LONG
         else:
             self.position_type = PositionType.NONE
-        # ROI(%) = [손익 / 초기 가치] * 100 * Leverager
+        # ROI(%) = [손익 / 초기 가치] * 100 * Leverage
         if float(entry_price) == 0:
             self.roi_ratio = 0
         else:
-            self.roi_ratio = (float(unrealized_profit) / float(entry_price)) * 100 * config.LEVERAGE
+            self.roi_ratio = (self.unrealized_profit / self.notional) * 100 * config.LEVERAGE
 
     @classmethod
     def from_api_response(cls, api_response):

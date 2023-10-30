@@ -12,7 +12,7 @@ class Trade:
         self.quote_qty = float(data['quoteQty'])
         self.commission = float(data['commission'])
         self.commission_asset = data['commissionAsset']
-        self.time = data['time']
+        self.time = float(data['time'])
         self.position_side = data['positionSide']
         self.buyer = data['buyer']
         self.maker = data['maker']
